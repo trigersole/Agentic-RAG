@@ -7,6 +7,7 @@ import typer
 from dotenv import load_dotenv
 from openai import OpenAI
 
+from .agentic_evaluation import AgenticClassifier, run_agentic_evaluation
 from .bootstrap import build_agent, build_store
 from .config import get_settings
 from .evaluation import load_items, run_evaluation
@@ -132,15 +133,21 @@ def smoke() -> None:
 
 @app.command("evaluate")
 def evaluate_command(
+    mode: str = typer.Option("fixed", help="fixed or agentic"),
     split: str = typer.Option("dev", help="dev, test, or all"),
     limit: int | None = typer.Option(None, min=1, help="Maximum items; omit for full split."),
     top_k: int = typer.Option(8, min=1, max=20),
+    repeats: int = typer.Option(1, min=1, max=10, help="Agentic runs per item."),
     output: str = typer.Option("runs/eval_results.jsonl"),
 ) -> None:
-    """Measure retrieval quality and four-label classification accuracy."""
+    """Measure fixed or agentic retrieval and four-label classification accuracy."""
     _load_environment()
     if split not in {"dev", "test", "all"}:
         raise typer.BadParameter("split must be dev, test, or all")
+    if mode not in {"fixed", "agentic"}:
+        raise typer.BadParameter("mode must be fixed or agentic")
+    if mode == "fixed" and repeats != 1:
+        raise typer.BadParameter("repeats applies only to agentic mode")
     if not os.getenv("OPENAI_API_KEY", "").strip():
         typer.secho("OPENAI_API_KEY is not configured in .env.", fg=typer.colors.RED, err=True)
         raise typer.Exit(code=2)
@@ -148,16 +155,39 @@ def evaluate_command(
     items = load_items(settings.eval_path, split, limit)
     client = OpenAI()
     store = build_store(settings, client)
-    metrics, _ = run_evaluation(
-        store=store,
-        client=client,
-        model=settings.chat_model,
-        reasoning_effort=settings.reasoning_effort,
-        embedding_model=settings.embedding_model,
-        items=items,
-        top_k=top_k,
-        output_path=Path(output),
-    )
+    if mode == "agentic":
+        agent = AgenticClassifier(
+            store,
+            client,
+            model=settings.chat_model,
+            reasoning_effort=settings.reasoning_effort,
+            default_top_k=top_k,
+            max_steps=settings.max_agent_steps,
+        )
+        metrics, _ = run_agentic_evaluation(
+            agent=agent,
+            store=store,
+            items=items,
+            top_k=top_k,
+            repeats=repeats,
+            output_path=Path(output),
+            progress=lambda completed, total: (
+                typer.echo(f"Agentic evaluation: {completed}/{total} runs complete")
+                if completed == 1 or completed == total or completed % 10 == 0
+                else None
+            ),
+        )
+    else:
+        metrics, _ = run_evaluation(
+            store=store,
+            client=client,
+            model=settings.chat_model,
+            reasoning_effort=settings.reasoning_effort,
+            embedding_model=settings.embedding_model,
+            items=items,
+            top_k=top_k,
+            output_path=Path(output),
+        )
     typer.echo(json.dumps(metrics, indent=2))
     typer.echo(f"Per-item results: {Path(output).resolve()}")
 

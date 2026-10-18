@@ -57,6 +57,24 @@ TOOLS = [
 ]
 
 
+def run_rag_tool(
+    store: VectorStore,
+    name: str,
+    arguments: dict[str, Any],
+    default_top_k: int = 8,
+) -> tuple[Any, int | None]:
+    """Execute one shared, read-only corpus tool."""
+    if name == "list_corpus_coverage":
+        result = store.catalog()
+        return result, len(result)
+    if name == "search_reports":
+        arguments["top_k"] = min(int(arguments.get("top_k", default_top_k)), 12)
+        hits = store.search(**arguments)
+        result = [hit.model_dump() for hit in hits]
+        return result, len(result)
+    raise ValueError(f"Unknown tool: {name}")
+
+
 class RagAgent:
     def __init__(
         self,
@@ -76,15 +94,7 @@ class RagAgent:
         self.max_steps = max_steps
 
     def _run_tool(self, name: str, arguments: dict[str, Any]) -> tuple[Any, int | None]:
-        if name == "list_corpus_coverage":
-            result = self.store.catalog()
-            return result, len(result)
-        if name == "search_reports":
-            arguments["top_k"] = min(int(arguments.get("top_k", self.default_top_k)), 12)
-            hits = self.store.search(**arguments)
-            result = [hit.model_dump() for hit in hits]
-            return result, len(result)
-        raise ValueError(f"Unknown tool: {name}")
+        return run_rag_tool(self.store, name, arguments, self.default_top_k)
 
     def ask(self, question: str) -> AskResponse:
         input_items: list[Any] = [{"role": "user", "content": question}]

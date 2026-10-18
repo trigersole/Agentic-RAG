@@ -34,6 +34,21 @@ uv run greenwash-rag smoke
 uv run greenwash-rag evaluate --split dev --limit 25
 ```
 
+Compare the fixed baseline with the full tool-using classification agent:
+
+```powershell
+# One-item agentic smoke test
+uv run greenwash-rag evaluate --mode agentic --split dev --limit 1 --output runs/agentic_smoke.jsonl
+
+# Small repeated evaluation (odd repeat counts avoid majority-vote ties)
+uv run greenwash-rag evaluate --mode agentic --split dev --limit 25 --repeats 3 --output runs/agentic_dev25.jsonl
+```
+
+Agentic mode lets the model choose corpus tools and repeat searches before returning a strict JSON
+classification. It additionally reports majority-vote accuracy, consistency, tool/search usage,
+retrieval success, evidence validity, latency, token usage, and errors. It costs more than fixed mode
+because each item may require several Responses API calls.
+
 Omit `--limit` to evaluate all 331 dev examples. Use the held-out test split only after tuning:
 `uv run greenwash-rag evaluate --split test`. Evaluation reports classification accuracy, macro-F1,
 retrieval Recall@k, retrieval MRR, and a confusion matrix; per-item outputs are saved under `runs/`.
