@@ -42,7 +42,8 @@ class FakeStore:
 
 
 def test_agent_executes_tool_and_returns_trace():
-    client = SimpleNamespace(responses=FakeResponses())
+    responses = FakeResponses()
+    client = SimpleNamespace(responses=responses)
     result = RagAgent(FakeStore(), client, model="test-model").ask("What is Alpha's target?")
     assert "[a | Alpha | 2023 | p. 4]" in result.answer
     assert result.trace[0].tool == "search_reports"

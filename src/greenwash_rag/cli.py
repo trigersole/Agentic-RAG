@@ -33,6 +33,8 @@ def doctor() -> None:
     checks: dict[str, object] = {
         "python": sys.version.split()[0],
         "api_key_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
+        "chat_model": settings.chat_model,
+        "reasoning_effort": settings.reasoning_effort,
         "data_dir": str(settings.data_dir.resolve()),
         "required_files": {},
     }
@@ -120,6 +122,7 @@ def smoke() -> None:
         store=store,
         client=client,
         model=settings.chat_model,
+        reasoning_effort=settings.reasoning_effort,
         embedding_model=settings.embedding_model,
         items=items,
         top_k=settings.top_k,
@@ -149,6 +152,7 @@ def evaluate_command(
         store=store,
         client=client,
         model=settings.chat_model,
+        reasoning_effort=settings.reasoning_effort,
         embedding_model=settings.embedding_model,
         items=items,
         top_k=top_k,

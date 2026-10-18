@@ -64,12 +64,14 @@ class RagAgent:
         client: OpenAI,
         *,
         model: str,
+        reasoning_effort: str = "low",
         default_top_k: int = 8,
         max_steps: int = 6,
     ):
         self.store = store
         self.client = client
         self.model = model
+        self.reasoning_effort = reasoning_effort
         self.default_top_k = default_top_k
         self.max_steps = max_steps
 
@@ -94,6 +96,7 @@ class RagAgent:
                 instructions=SYSTEM_PROMPT,
                 input=input_items,
                 tools=TOOLS,
+                reasoning={"effort": self.reasoning_effort},
             )
             input_items += response.output
             calls = [item for item in response.output if item.type == "function_call"]
@@ -123,5 +126,6 @@ class RagAgent:
             input=input_items,
             tools=TOOLS,
             tool_choice="none",
+            reasoning={"effort": self.reasoning_effort},
         )
         return AskResponse(answer=final.output_text, trace=trace)

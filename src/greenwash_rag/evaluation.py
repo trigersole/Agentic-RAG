@@ -71,6 +71,7 @@ def gold_chunk_ids(store: VectorStore, item: dict[str, Any]) -> set[str]:
 def classify(
     client: OpenAI,
     model: str,
+    reasoning_effort: str,
     item: dict[str, Any],
     evidence: Iterable[dict[str, Any]],
 ) -> str:
@@ -90,6 +91,7 @@ def classify(
         model=model,
         instructions=CLASSIFIER_PROMPT,
         input=user_input,
+        reasoning={"effort": reasoning_effort},
     )
     prediction = response.output_text.strip().lower().strip("` .\n\t")
     if prediction not in LABELS:
@@ -156,6 +158,7 @@ def run_evaluation(
     store: VectorStore,
     client: OpenAI,
     model: str,
+    reasoning_effort: str,
     embedding_model: str,
     items: list[dict[str, Any]],
     top_k: int,
@@ -170,7 +173,7 @@ def run_evaluation(
         hit_dicts = [hit.model_dump() for hit in hits]
         relevant = gold_chunk_ids(store, item)
         ranks = [rank for rank, hit in enumerate(hits, start=1) if hit.chunk_id in relevant]
-        prediction = classify(client, model, item, hit_dicts)
+        prediction = classify(client, model, reasoning_effort, item, hit_dicts)
         results.append(
             {
                 "item_id": item["item_id"],

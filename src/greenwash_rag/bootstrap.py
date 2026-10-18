@@ -31,6 +31,7 @@ def build_agent(settings: Settings | None = None) -> RagAgent:
         store,
         client,
         model=settings.chat_model,
+        reasoning_effort=settings.reasoning_effort,
         default_top_k=settings.top_k,
         max_steps=settings.max_agent_steps,
     )

@@ -21,6 +21,7 @@ working system.
 uv sync --extra dev
 Copy-Item .env.example .env
 # Edit .env and set OPENAI_API_KEY and GREENWASH_DATA_DIR.
+# OPENAI_CHAT_MODEL=gpt-5.6-luna and OPENAI_REASONING_EFFORT=low are the defaults.
 uv run greenwash-rag doctor
 uv run greenwash-rag validate
 uv run greenwash-rag ask "Compare emissions targets across two banks"
