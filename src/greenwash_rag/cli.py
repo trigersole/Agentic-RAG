@@ -36,6 +36,10 @@ def doctor() -> None:
         "api_key_configured": bool(os.getenv("OPENAI_API_KEY", "").strip()),
         "chat_model": settings.chat_model,
         "reasoning_effort": settings.reasoning_effort,
+        "retrieval_mode": settings.retrieval_mode,
+        "retrieval_candidates": settings.retrieval_candidates,
+        "rerank_depth": settings.rerank_depth,
+        "reranker_model": settings.reranker_model,
         "data_dir": str(settings.data_dir.resolve()),
         "required_files": {},
     }
@@ -63,7 +67,14 @@ def validate() -> None:
     _load_environment()
     settings = get_settings()
     try:
-        store = VectorStore(settings.data_dir, lambda _: [])
+        store = VectorStore(
+            settings.data_dir,
+            lambda _: [],
+            retrieval_mode=settings.retrieval_mode,
+            candidate_k=settings.retrieval_candidates,
+            rerank_depth=settings.rerank_depth,
+            reranker_model=settings.reranker_model,
+        )
     except CorpusError as exc:
         _corpus_error(exc)
     typer.echo(json.dumps(store.stats(), indent=2, default=str))
@@ -93,19 +104,13 @@ def search(
     _load_environment()
     settings = get_settings()
     client = OpenAI()
-
-    def embed(text: str) -> list[float]:
-        response = client.embeddings.create(
-            model=settings.embedding_model, input=text, encoding_format="float"
-        )
-        return response.data[0].embedding
-
     try:
-        store = VectorStore(settings.data_dir, embed)
+        store = build_store(settings, client)
     except CorpusError as exc:
         _corpus_error(exc)
     hits = store.search(query, company=company, year=year, top_k=top_k)
-    typer.echo(json.dumps([hit.model_dump() for hit in hits], indent=2, ensure_ascii=False))
+    # Escaping non-ASCII keeps output safe in the legacy CP-1252 PowerShell console as well as UTF-8.
+    typer.echo(json.dumps([hit.model_dump() for hit in hits], indent=2, ensure_ascii=True))
 
 
 @app.command()

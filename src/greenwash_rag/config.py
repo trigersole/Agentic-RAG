@@ -19,6 +19,14 @@ class Settings(BaseSettings):
         "low", alias="OPENAI_REASONING_EFFORT"
     )
     embedding_model: str = Field("text-embedding-3-small", alias="OPENAI_EMBEDDING_MODEL")
+    retrieval_mode: Literal["bm25", "dense", "rrf", "rrf+rerank"] = Field(
+        "rrf+rerank", alias="GREENWASH_RETRIEVAL_MODE"
+    )
+    retrieval_candidates: int = Field(50, ge=10, le=200, alias="GREENWASH_RETRIEVAL_CANDIDATES")
+    rerank_depth: int = Field(20, ge=1, le=100, alias="GREENWASH_RERANK_DEPTH")
+    reranker_model: str = Field(
+        "Xenova/ms-marco-MiniLM-L-6-v2", alias="GREENWASH_RERANKER_MODEL"
+    )
     top_k: int = Field(8, ge=1, le=20, alias="GREENWASH_TOP_K")
     max_agent_steps: int = Field(6, ge=1, le=12, alias="GREENWASH_MAX_AGENT_STEPS")
 

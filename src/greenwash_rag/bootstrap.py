@@ -19,7 +19,14 @@ def build_store(settings: Settings | None = None, client: OpenAI | None = None) 
         )
         return response.data[0].embedding
 
-    return VectorStore(settings.data_dir, embed_query)
+    return VectorStore(
+        settings.data_dir,
+        embed_query,
+        retrieval_mode=settings.retrieval_mode,
+        candidate_k=settings.retrieval_candidates,
+        rerank_depth=settings.rerank_depth,
+        reranker_model=settings.reranker_model,
+    )
 
 
 def build_agent(settings: Settings | None = None) -> RagAgent:

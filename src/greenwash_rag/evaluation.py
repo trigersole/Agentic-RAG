@@ -24,7 +24,9 @@ Labels:
   whether a relevant action is planned or implemented.
 
 Use the focal statement, its neighboring context, and retrieved report evidence. Reported corporate
-claims are evidence of what was disclosed, not proof that real-world impact occurred. Return only one
+claims are evidence of what was disclosed, not proof that real-world impact occurred. Always label the
+focal statement itself: retrieved evidence may resolve a reference or actor, but a later report saying
+that a plan was completed must not change a planning statement into implemented. Return only one
 lowercase label: none, planning, implemented, or indeterminate.
 """
 
@@ -141,16 +143,35 @@ def compute_metrics(results: list[dict[str, Any]], top_k: int) -> dict[str, Any]
             2 * precision * recall / (precision + recall) if precision + recall else 0.0
         )
 
-    return {
+    metrics = {
         "items": total,
         "accuracy": correct / total if total else 0.0,
         "macro_f1": sum(f1_by_label.values()) / len(LABELS) if total else 0.0,
         "f1_by_label": f1_by_label,
-        f"retrieval_recall@{top_k}": retrieval_hits / total if total else 0.0,
-        "retrieval_mrr": reciprocal_rank / total if total else 0.0,
         "prediction_counts": dict(Counter(row["prediction"] for row in results)),
         "confusion_matrix": confusion,
     }
+    target_exclusion = bool(results) and all(
+        row.get("target_exclusion_enabled") for row in results
+    )
+    if target_exclusion:
+        metrics.update(
+            {
+                "target_leakage_rate": retrieval_hits / total if total else 0.0,
+                "retrieval_relevance_metrics": (
+                    "not computed: the dataset identifies the focal-statement chunk, not judged "
+                    "relevant evidence, and that chunk is deliberately excluded"
+                ),
+            }
+        )
+    else:
+        metrics.update(
+            {
+                f"retrieval_recall@{top_k}": retrieval_hits / total if total else 0.0,
+                "retrieval_mrr": reciprocal_rank / total if total else 0.0,
+            }
+        )
+    return metrics
 
 
 def run_evaluation(
@@ -165,11 +186,20 @@ def run_evaluation(
     output_path: Path | None = None,
 ) -> tuple[dict[str, Any], list[dict[str, Any]]]:
     queries = [evaluation_query(item) for item in items]
-    vectors = embed_queries(client, embedding_model, queries)
+    vectors: list[list[float] | None]
+    if store.retrieval_mode == "bm25":
+        vectors = [None] * len(queries)
+    else:
+        vectors = embed_queries(client, embedding_model, queries)
     results: list[dict[str, Any]] = []
 
-    for item, vector in zip(items, vectors, strict=True):
-        hits = store.search_vector(vector, top_k=top_k)
+    for item, query, vector in zip(items, queries, vectors, strict=True):
+        hits = store.search_vector(
+            vector,
+            query=query,
+            exclude_text=str(item.get("text") or ""),
+            top_k=top_k,
+        )
         hit_dicts = [hit.model_dump() for hit in hits]
         relevant = gold_chunk_ids(store, item)
         ranks = [rank for rank, hit in enumerate(hits, start=1) if hit.chunk_id in relevant]
@@ -184,6 +214,7 @@ def run_evaluation(
                 "gold_chunk_ids": sorted(relevant),
                 "retrieved_chunk_ids": [hit.chunk_id for hit in hits],
                 "retrieved_gold_ranks": ranks,
+                "target_exclusion_enabled": True,
             }
         )
 

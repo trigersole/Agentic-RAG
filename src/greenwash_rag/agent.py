@@ -27,7 +27,10 @@ TOOLS = [
     {
         "type": "function",
         "name": "search_reports",
-        "description": "Semantic search over sustainability-report passages, optionally filtered.",
+        "description": (
+            "Hybrid BM25 and semantic search with rank fusion and cross-encoder reranking. "
+            "Use company/year filters when the question identifies them."
+        ),
         "parameters": {
             "type": "object",
             "properties": {
@@ -40,9 +43,29 @@ TOOLS = [
                     "type": ["integer", "null"],
                     "description": "Report year, or null.",
                 },
+                "year_from": {
+                    "type": ["integer", "null"],
+                    "description": "Earliest report year to include, or null.",
+                },
+                "year_to": {
+                    "type": ["integer", "null"],
+                    "description": "Latest report year to include, or null.",
+                },
+                "exclude_year": {
+                    "type": ["integer", "null"],
+                    "description": "Report year to exclude for cross-year evidence, or null.",
+                },
                 "top_k": {"type": "integer", "minimum": 1, "maximum": 12},
             },
-            "required": ["query", "company", "year", "top_k"],
+            "required": [
+                "query",
+                "company",
+                "year",
+                "year_from",
+                "year_to",
+                "exclude_year",
+                "top_k",
+            ],
             "additionalProperties": False,
         },
         "strict": True,
@@ -62,14 +85,16 @@ def run_rag_tool(
     name: str,
     arguments: dict[str, Any],
     default_top_k: int = 8,
+    exclude_text: str | None = None,
 ) -> tuple[Any, int | None]:
     """Execute one shared, read-only corpus tool."""
     if name == "list_corpus_coverage":
         result = store.catalog()
         return result, len(result)
     if name == "search_reports":
-        arguments["top_k"] = min(int(arguments.get("top_k", default_top_k)), 12)
-        hits = store.search(**arguments)
+        search_arguments = dict(arguments)
+        search_arguments["top_k"] = min(int(arguments.get("top_k", default_top_k)), 12)
+        hits = store.search(**search_arguments, exclude_text=exclude_text)
         result = [hit.model_dump() for hit in hits]
         return result, len(result)
     raise ValueError(f"Unknown tool: {name}")

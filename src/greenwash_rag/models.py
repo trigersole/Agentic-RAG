@@ -12,6 +12,7 @@ class SearchHit(BaseModel):
     file: str | None = None
     statement_ids: list[Any] = Field(default_factory=list)
     score: float
+    retrieval_method: str = "dense"
 
 
 class AskRequest(BaseModel):
