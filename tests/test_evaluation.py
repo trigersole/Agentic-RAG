@@ -1,5 +1,21 @@
-from greenwash_rag.agentic_evaluation import compute_agentic_metrics
-from greenwash_rag.evaluation import compute_metrics
+from greenwash_rag.agentic_evaluation import AGENTIC_CLASSIFIER_PROMPT, compute_agentic_metrics
+from greenwash_rag.evaluation import CLASSIFICATION_RULES, CLASSIFIER_PROMPT, compute_metrics
+
+
+def test_fixed_and_agentic_prompts_share_complete_classification_rules():
+    assert CLASSIFICATION_RULES in CLASSIFIER_PROMPT
+    assert CLASSIFICATION_RULES in AGENTIC_CLASSIFIER_PROMPT
+    for required_rule in (
+        "Ignore actions",
+        "concerning other aspects",
+        "Hedging overrides",
+        '"seek to"',
+        "Monitoring or tracking",
+        "Zero incidents",
+        "reduced or removed",
+        "later passage saying a plan was completed",
+    ):
+        assert required_rule in CLASSIFICATION_RULES
 
 
 def test_compute_metrics():

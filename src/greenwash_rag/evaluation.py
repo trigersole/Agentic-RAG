@@ -12,22 +12,68 @@ from .store import VectorStore
 
 LABELS = ("none", "planning", "implemented", "indeterminate")
 
-CLASSIFIER_PROMPT = """Classify the sustainability-report statement into exactly one label.
+CLASSIFICATION_RULES = """TASK AND SCOPE
+- Label what the focal sustainability statement expresses for the ONE proposed aspect. Ignore actions
+  concerning other aspects in the same sentence.
+- When no aspect is proposed, choose none if the sentence contains no valid sustainability aspect. If
+  it does contain one, classify the action expressed for that aspect.
+- Category is reference metadata, not the output label.
 
-Labels:
-- none: no environmental/social action or commitment concerning the named aspect is expressed.
-- planning: a future intention, aim, target, commitment, or proposed action is expressed, without clear
-  evidence in the supplied text that the action has already been carried out.
-- implemented: a concrete action, policy, process, measurement, disclosure, or initiative has already
-  been carried out or is currently operating.
-- indeterminate: the wording is contextual, aspirational, vague, or otherwise insufficient to decide
-  whether a relevant action is planned or implemented.
+LABEL DEFINITIONS
+- planning: the company has planned an action or made a future commitment to incorporate, address, or
+  advance the aspect. This includes "strive to", "seek to", "endeavour to", aims and targets, and a
+  forward-looking goal that depends on a forthcoming event.
+- implemented: the company has already incorporated an activity or entity into operations, has already
+  taken a concrete action, or has advanced or achieved a sustainability goal.
+- indeterminate: the statement does not clearly establish whether or how the company engages with the
+  aspect. This includes vague, non-committal, exploratory, non-attributable, or action-free language.
+- none: there is no valid aspect-action pair. For a proposed aspect, use none only when that proposed
+  span clearly is not a valid sustainability aspect; do not use none merely because its action is vague.
 
-Use the focal statement, its neighboring context, and retrieved report evidence. Reported corporate
-claims are evidence of what was disclosed, not proof that real-world impact occurred. Always label the
-focal statement itself: retrieved evidence may resolve a reference or actor, but a later report saying
-that a plan was completed must not change a planning statement into implemented. Return only one
-lowercase label: none, planning, implemented, or indeterminate.
+ASPECT VALIDITY
+A valid aspect is an explicit, continuous phrase in the statement describing a sustainability entity,
+goal, sub-area, or activity, directly linked to the supplied sustainability category without additional
+assumptions. A slightly long or short span can still be valid.
+
+APPLY THIS DECISION ORDER
+1. Does the proposed aspect pass the aspect-validity rules? If not, label none.
+2. Is the company, its board, management, staff, or subsidiary clearly the actor engaging with it? If
+   not, label indeterminate.
+3. Is the engagement hedged or exploratory—for example "where possible", "if feasible", "considering",
+   or "exploring"? Label indeterminate. Hedging overrides past, present, or future tense.
+4. Is the sentence only disclosing figures, listing responsibilities, expressing belief or risk, or
+   describing an action being reduced or removed without a sustainability enhancement? Label
+   indeterminate.
+5. Has an action already been taken or a goal been advanced or achieved? Label implemented.
+6. Has the company planned or committed to an action, including strive/seek/endeavour language or a
+   future dependency? Label planning.
+7. Otherwise label indeterminate. When uncertain, choose the single best-supported label.
+
+IMPORTANT HARD CASES
+- Monitoring or tracking that the company already performs is implemented; merely reporting the
+  monitored numbers is indeterminate.
+- "Zero incidents" or "no breaches" during a completed period counts as a goal achieved: implemented.
+- Future disclosure of figures is still mere disclosure: indeterminate.
+- A responsibility such as "the board is responsible for governance" without an improvement action is
+  indeterminate.
+- A framework that any company could follow is unattributed and therefore indeterminate.
+- A completed or operating action described with "where possible" remains indeterminate.
+- If "strives to" governs multiple coordinated actions, all governed actions are planning.
+
+CONTEXT AND RETRIEVED EVIDENCE
+Always label the focal statement itself. Neighboring context and retrieved passages may only resolve a
+reference such as "this target" or "these measures", identify the actor, or clarify what the named
+programme, policy, metric, or aspect means. They must not override the focal sentence. In particular, a
+later passage saying a plan was completed must not change a planning focal statement to implemented.
+Treat company reports as evidence of what the company disclosed, not independent proof of real-world
+impact."""
+
+CLASSIFIER_PROMPT = f"""Classify the sustainability-report statement into exactly one label using the
+following annotation guide.
+
+{CLASSIFICATION_RULES}
+
+Return only one lowercase label: none, planning, implemented, or indeterminate.
 """
 
 

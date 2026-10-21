@@ -12,19 +12,13 @@ from openai import OpenAI
 from pydantic import BaseModel
 
 from .agent import TOOLS, run_rag_tool
-from .evaluation import LABELS, compute_metrics, gold_chunk_ids
+from .evaluation import CLASSIFICATION_RULES, LABELS, compute_metrics, gold_chunk_ids
 from .store import CorpusError, VectorStore
 
-AGENTIC_CLASSIFIER_PROMPT = """You are an evidence-focused sustainability-statement classification agent.
+AGENTIC_CLASSIFIER_PROMPT = f"""You are an evidence-focused sustainability-statement classification
+agent. Classify the focal statement into exactly one label using this annotation guide:
 
-Classify the focal statement into exactly one label:
-- none: no relevant environmental or social action or commitment is expressed.
-- planning: a future intention, target, commitment, or proposed action is expressed without evidence
-  that it has been carried out.
-- implemented: a concrete action, policy, measurement, process, disclosure, or initiative is already
-  operating or has been completed.
-- indeterminate: the available wording is too vague or contextual to determine whether an action is
-  planned or implemented.
+{CLASSIFICATION_RULES}
 
 Use search_reports when additional report evidence would help. You may inspect corpus coverage and
 perform multiple searches with different queries or metadata filters. Treat retrieved passages as
